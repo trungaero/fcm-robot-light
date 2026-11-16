@@ -8,13 +8,16 @@ import time
 from typing import Awaitable, Callable
 
 from aiortc import (
+    RTCConfiguration,
     RTCIceCandidate,
+    RTCIceServer,
     RTCPeerConnection,
     RTCSessionDescription,
     MediaStreamTrack,
 )
 from aiortc.mediastreams import MediaStreamError
 
+from config import config
 from audio import (
     CHUNK_BYTES,
     CHUNK_SECONDS,
@@ -34,6 +37,28 @@ from openai_realtime import (
 log = logging.getLogger(__name__)
 
 SendEvent = Callable[[dict], Awaitable[None]]
+
+
+def build_ice_servers() -> list[RTCIceServer]:
+    """Build the ICE server list from config (STUN required, TURN optional).
+
+    In a multi-machine or containerized deployment the backend's host
+    candidates are its private/container IP, so the browser cannot reach it
+    directly. STUN lets both peers discover reachable candidates, and TURN
+    relays media when NAT blocks the direct path.
+    """
+    servers: list[RTCIceServer] = []
+    if config.stun_url:
+        servers.append(RTCIceServer(urls=config.stun_url))
+    if config.turn_url:
+        servers.append(
+            RTCIceServer(
+                urls=config.turn_url,
+                username=config.turn_username or None,
+                credential=config.turn_credential or None,
+            )
+        )
+    return servers
 
 
 class OpenAIAudioTrack(MediaStreamTrack):
@@ -141,7 +166,9 @@ class VoicePeer:
     def __init__(self, realtime: OpenAIRealtimeClient, send_event: SendEvent) -> None:
         self.realtime = realtime
         self._send_event = send_event
-        self.pc = RTCPeerConnection()
+        self.pc = RTCPeerConnection(
+            RTCConfiguration(iceServers=build_ice_servers())
+        )
         self.playback = OpenAIAudioTrack()
         self.pc.addTrack(self.playback)
 

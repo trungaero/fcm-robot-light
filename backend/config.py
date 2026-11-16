@@ -19,6 +19,10 @@ class Config:
     host: str
     port: int
     safety_identifier: str
+    stun_url: str
+    turn_url: str
+    turn_username: str
+    turn_credential: str
 
 
 def load_config() -> Config:
@@ -33,6 +37,10 @@ def load_config() -> Config:
         host=os.getenv("BACKEND_HOST", "0.0.0.0"),
         port=int(os.getenv("BACKEND_PORT", "8000")),
         safety_identifier=os.getenv("OPENAI_SAFETY_IDENTIFIER", "voice-chat-demo"),
+        stun_url=os.getenv("WEBRTC_STUN_URL", "stun:stun.l.google.com:19302"),
+        turn_url=os.getenv("WEBRTC_TURN_URL", ""),
+        turn_username=os.getenv("WEBRTC_TURN_USERNAME", ""),
+        turn_credential=os.getenv("WEBRTC_TURN_CREDENTIAL", ""),
     )
 
 

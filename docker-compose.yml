@@ -1,3 +1,8 @@
+# Simulates backend and frontend living on two separate machines:
+# each service is isolated on its own Docker network (net-a / net-b) with no
+# shared route between them. The frontend reaches the backend only through the
+# host's published port (host.docker.internal), exactly like a browser on a
+# different machine would reach a backend over the network.
 services:
   backend:
     build:
@@ -8,8 +13,14 @@ services:
       OPENAI_REALTIME_VOICE: ${OPENAI_REALTIME_VOICE:-marin}
       OPENAI_INSTRUCTIONS: ${OPENAI_INSTRUCTIONS:-You are a friendly, concise voice assistant. Keep replies short and conversational.}
       OPENAI_SAFETY_IDENTIFIER: ${OPENAI_SAFETY_IDENTIFIER:-voice-chat-demo}
+      WEBRTC_STUN_URL: ${WEBRTC_STUN_URL:-stun:stun.l.google.com:19302}
+      WEBRTC_TURN_URL: ${WEBRTC_TURN_URL:-}
+      WEBRTC_TURN_USERNAME: ${WEBRTC_TURN_USERNAME:-}
+      WEBRTC_TURN_CREDENTIAL: ${WEBRTC_TURN_CREDENTIAL:-}
     ports:
       - "8000:8000"
+    networks:
+      - net-a
     restart: unless-stopped
 
   frontend:
@@ -19,4 +30,16 @@ services:
       - backend
     ports:
       - "5173:80"
+    networks:
+      - net-b
+    # Lets nginx reach the backend via the host's published :8000 port,
+    # standing in for a remote backend machine's address.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
+
+networks:
+  net-a:
+    driver: bridge
+  net-b:
+    driver: bridge
