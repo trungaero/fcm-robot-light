@@ -7,6 +7,7 @@ packages:
   - curl
   - gnupg
   - lsb-release
+  - openssl
 
 write_files:
   - path: /opt/voice-chat/docker-compose.yml
@@ -19,7 +20,7 @@ write_files:
     permissions: "0644"
     owner: root:root
     content: |
-      ${replace(replace(trimspace(caddyfile), "<VM_PUBLIC_IP>", public_ip), "\n", "\n      ")}
+      ${replace(trimspace(caddyfile), "\n", "\n      ")}
 
   - path: /opt/voice-chat/.env
     permissions: "0600"
@@ -78,6 +79,15 @@ runcmd:
     apt-get update -y
     apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     systemctl enable --now docker
+    install -d -m 0700 /opt/voice-chat/certs
+    openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes \
+      -keyout /opt/voice-chat/certs/privkey.pem \
+      -out /opt/voice-chat/certs/fullchain.pem \
+      -days 3650 \
+      -subj "/CN=${public_ip}" \
+      -addext "subjectAltName=IP:${public_ip},DNS:localhost" \
+      -addext "keyUsage=digitalSignature,keyEncipherment" \
+      -addext "extendedKeyUsage=serverAuth"
     docker compose -f /opt/voice-chat/docker-compose.yml up -d
     systemctl daemon-reload
     systemctl enable --now voice-chat-update.timer
