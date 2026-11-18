@@ -1,0 +1,19 @@
+# Production compose for the single Azure VM.
+#
+# Only the backend runs on the VM. The frontend runs locally on the developer's
+# machine and connects to this backend over the network (see the root README).
+#
+# The image is pre-built and pushed to GHCR by
+# `.github/workflows/build-backend.yml`; this file does NOT use `build:`.
+#
+# The backend runs on the host network so aiortc binds the VM's NIC directly:
+# STUN discovers the public IP and WebRTC media (SRTP/UDP) is reachable without
+# TURN in simple NAT setups (see the root README "Networking" section for the
+# caveats and the TURN recommendation).
+services:
+  backend:
+    image: ghcr.io/trungaero/fcm-robot-light/backend:latest
+    network_mode: host
+    env_file:
+      - .env
+    restart: unless-stopped

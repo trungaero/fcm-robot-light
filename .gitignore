@@ -3,10 +3,14 @@ __pycache__/
 *.py[cod]
 backend/.venv/
 backend/.env
+deploy/.env
 
 # Node / frontend
 frontend/node_modules/
 frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
 npm-debug.log*
 
 # Editor / OS
