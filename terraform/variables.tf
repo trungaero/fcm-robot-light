@@ -105,9 +105,9 @@ variable "webrtc_turn_credential" {
 }
 
 variable "webrtc_udp_port_range" {
-  description = "Inbound UDP port range opened for WebRTC media (aiortc uses ephemeral ports; see README)."
+  description = "Inbound UDP port range opened for WebRTC media. aiortc binds ephemeral UDP ports, so this must cover the kernel's ephemeral range (default 32768-60999). 32768-65535 covers every possible ephemeral port."
   type        = string
-  default     = "40000-40100"
+  default     = "32768-65535"
 }
 
 variable "vm_tags" {

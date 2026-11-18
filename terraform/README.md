@@ -76,7 +76,9 @@ Adjust the interval in [templates/cloud-init.yaml.tpl](templates/cloud-init.yaml
    NAT paths, but a TURN relay is strongly recommended. Set `webrtc_turn_url` /
    `webrtc_turn_username` / `webrtc_turn_credential` (e.g. coturn on this VM, or a
    managed provider like Metered/Twilio). The `WebRTC-UDP` NSG rule
-   (`webrtc_udp_port_range`) is a best-effort starting point.
+   (`webrtc_udp_port_range`, default `32768-65535`) opens the full ephemeral range
+   so aiortc's sockets are reachable, but it cannot solve NAT traversal by itself
+   when the client is behind symmetric/CGNAT.
 2. **HTTPS is not required** while the frontend runs on `localhost`; the Vite
    dev server proxies signaling to the VM. TLS is only needed if you later serve
    the frontend remotely.
