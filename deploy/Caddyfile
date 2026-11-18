@@ -1,0 +1,16 @@
+# Caddy reverse proxy for the voice-chat backend.
+#
+# Terminates TLS for the signaling path (/ws + /health) and forwards everything
+# to the backend's host-network socket at 127.0.0.1:8000. WebRTC media
+# (SRTP/UDP) is peer-to-peer and never passes through Caddy.
+#
+# The site address is the VM's static public IP (templated in by Terraform).
+# TLS is provided by Caddy's internal CA (self-signed), since the frontend is
+# served locally and the local Vite dev proxy is the only client.
+#
+# Caddy upgrades WebSocket connections automatically; no extra directives are
+# needed for the /ws endpoint.
+
+<VM_PUBLIC_IP> {
+    reverse_proxy 127.0.0.1:8000
+}

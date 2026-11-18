@@ -21,7 +21,8 @@ your machine and connects to that remote backend.
 ```mermaid
 flowchart LR
     Browser[Browser on your laptop] -->|SPA + /ws proxy| Vite[Vite dev server :5173]
-    Vite -->|HTTP/WebSocket TCP 8000| Backend[Backend on VM :8000]
+    Vite -->|HTTPS / WSS TCP 443| Caddy[Caddy on VM :443]
+    Caddy -->|proxy 127.0.0.1:8000| Backend[Backend on VM :8000]
     Browser -->|WebRTC media UDP| Backend
     Backend -->|WebSocket| OpenAI[OpenAI Realtime API]
     Actions[GitHub Actions] -->|push image| GHCR[GHCR ghcr.io/.../backend]
@@ -33,8 +34,8 @@ flowchart LR
 - **Terraform** provisions the VM and installs Docker plus an **auto-update
   systemd timer** that pulls the latest image on a schedule.
 - The local frontend's Vite dev server proxies `/ws` (signaling) and `/health`
-  to the VM, so the browser only ever talks to `localhost` (a secure context
-  required for `getUserMedia`).
+  to the VM through **Caddy** (TLS-terminated on `:443`), so the browser only
+  ever talks to `localhost` (a secure context required for `getUserMedia`).
 
 ## Prerequisites
 
@@ -103,13 +104,13 @@ It also installs an auto-update timer (see *Auto-update* below).
    terraform output
    ```
    - `public_ip`
-   - `backend_url` → `http://<public_ip>:8000`
-   - `backend_ws_url` → `ws://<public_ip>:8000`
-   - `health_url` → `http://<public_ip>:8000/health`
+   - `backend_url` → `https://<public_ip>`
+   - `backend_ws_url` → `wss://<public_ip>`
+   - `health_url` → `https://<public_ip>/health`
    - `ssh_command`
-5. Verify the backend is up:
+5. Verify the backend is up (Caddy's cert is self-signed, hence `-k`):
    ```bash
-   curl -fsS http://<public_ip>:8000/health
+   curl -kfsS https://<public_ip>/health
    # {"status":"ok","model":"gpt-realtime-mini","api_key_configured":true}
    ```
 
@@ -133,8 +134,8 @@ It also installs an auto-update timer (see *Auto-update* below).
    ```
    Edit `frontend/.env`:
    ```bash
-   VITE_BACKEND_WS_URL=ws://<public_ip>:8000
-   VITE_BACKEND_HTTP_URL=http://<public_ip>:8000
+   VITE_BACKEND_WS_URL=wss://<public_ip>
+   VITE_BACKEND_HTTP_URL=https://<public_ip>
    ```
 2. Install and start:
    ```bash
@@ -144,9 +145,11 @@ It also installs an auto-update timer (see *Auto-update* below).
 3. Open http://localhost:5173, click **Start talking**, allow the microphone,
    and speak.
 
-The Vite dev server proxies `/ws` and `/health` to the VM (TCP 8000). WebRTC
-media flows directly between your browser and the VM over UDP — see
-*Networking* below for the TURN caveat.
+The Vite dev server proxies `/ws` and `/health` to the VM over TLS (TCP 443,
+Caddy-terminated, self-signed — accepted via `secure: false` in
+[frontend/vite.config.ts](frontend/vite.config.ts)). WebRTC media flows
+directly between your browser and the VM over UDP — see *Networking* below for
+the TURN caveat.
 
 ---
 
@@ -215,16 +218,20 @@ Frontend proxy settings are in `frontend/.env` (see
 
 ## Networking & production notes
 
-- **Signaling** (`/ws`, `/health`) goes over TCP 8000, opened by the `Backend`
-  NSG rule in [terraform/network.tf](terraform/network.tf).
+- **Signaling** (`/ws`, `/health`) goes over TCP 443, TLS-terminated by Caddy
+  on the VM and opened by the `HTTPS` NSG rule in
+  [terraform/network.tf](terraform/network.tf). The backend's plain `:8000` is
+  no longer exposed publicly.
 - **WebRTC media** (SRTP/UDP) flows directly between the browser and the VM.
   aiortc binds ephemeral UDP ports, and the NSG opens the `40000–40100` range as
   a best-effort starting point. For reliable media behind NAT (especially
   symmetric NAT), run a **TURN** server and set `WEBRTC_TURN_URL`,
   `WEBRTC_TURN_USERNAME`, and `WEBRTC_TURN_CREDENTIAL` in `terraform.tfvars`.
-- **HTTPS is not required** while the frontend runs on `localhost` (a secure
-  context). If you later serve the frontend from a remote host, add TLS and
-  point the proxy at `wss://…`.
+- **TLS** is provided by Caddy on the VM using a self-signed certificate for
+  the VM's public IP. The browser itself only talks to `localhost` (a secure
+  context); the Vite dev proxy accepts the self-signed cert. To use a trusted
+  cert instead, point a domain at the VM and switch the Caddyfile site address
+  from the IP to that domain so Caddy can obtain a Let's Encrypt certificate.
 
 ---
 

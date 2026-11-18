@@ -14,14 +14,19 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       proxy: {
-        // Proxy the signaling WebSocket to the FastAPI backend.
+        // Proxy the signaling WebSocket to the FastAPI backend (through Caddy).
+        // changeOrigin rewrites the Host header to match Caddy's site address;
+        // secure: false accepts Caddy's self-signed certificate.
         "/ws": {
           target: backendWs,
           ws: true,
+          changeOrigin: true,
+          secure: false,
         },
         "/health": {
           target: backendHttp,
           changeOrigin: true,
+          secure: false,
         },
       },
     },

@@ -9,10 +9,15 @@ The **frontend runs locally** on the developer's machine (see the root
 
 - **Backend** (`network_mode: host`) — FastAPI/aiortc binds the VM NIC directly
   so STUN discovers the public IP and WebRTC media (SRTP/UDP) is reachable.
-- **NSG** opens SSH (22), backend signaling (TCP 8000), and WebRTC media
-  (UDP `webrtc_udp_port_range`).
+- **Caddy** (`network_mode: host`) — TLS-terminates the signaling path on
+  `:443` (self-signed cert for the VM's public IP) and reverse-proxies to the
+  backend at `127.0.0.1:8000`.
+- **NSG** opens SSH (22), HTTPS signaling (TCP 443), and WebRTC media
+  (UDP `webrtc_udp_port_range`). The backend's plain `:8000` is not exposed.
 - **cloud-init** installs Docker and writes:
   - `/opt/voice-chat/docker-compose.yml` (from [../deploy/docker-compose.yml](../deploy/docker-compose.yml))
+  - `/opt/voice-chat/Caddyfile` (from [../deploy/Caddyfile](../deploy/Caddyfile),
+    with the VM public IP substituted in)
   - `/opt/voice-chat/.env` (secrets/vars injected from `terraform.tfvars`)
   - a **systemd timer** (`voice-chat-update.timer`) that pulls the latest
     `:latest` image every 2 minutes and re-creates the container on change.
@@ -54,9 +59,13 @@ terraform apply
 terraform output
 # public_ip, backend_url, backend_ws_url, health_url, ssh_command
 
-curl -fsS http://<public_ip>:8000/health   # {"status":"ok","api_key_configured":true}
-ssh <admin>@<public_ip>                     # then: docker compose -f /opt/voice-chat/docker-compose.yml ps
+curl -kfsS https://<public_ip>/health      # {"status":"ok","api_key_configured":true}
+ssh <admin>@<public_ip>                    # then: docker compose -f /opt/voice-chat/docker-compose.yml ps
 ```
+
+> Caddy uses a self-signed certificate for the VM's public IP, so `curl` needs
+> `-k`. For a trusted cert, point a domain at the VM and replace the site
+> address in [../deploy/Caddyfile](../deploy/Caddyfile) with that domain.
 
 ## Auto-update
 
@@ -79,9 +88,12 @@ Adjust the interval in [templates/cloud-init.yaml.tpl](templates/cloud-init.yaml
    (`webrtc_udp_port_range`, default `32768-65535`) opens the full ephemeral range
    so aiortc's sockets are reachable, but it cannot solve NAT traversal by itself
    when the client is behind symmetric/CGNAT.
-2. **HTTPS is not required** while the frontend runs on `localhost`; the Vite
-   dev server proxies signaling to the VM. TLS is only needed if you later serve
-   the frontend remotely.
+2. **TLS is terminated by Caddy** on the VM using a self-signed certificate for
+   the VM's public IP. The local Vite dev proxy accepts it via `secure: false`
+   (see [../frontend/vite.config.ts](../frontend/vite.config.ts)); the browser
+   itself only talks to `localhost`. To use a trusted certificate, point a
+   domain at the VM and set that domain as the Caddyfile site address so Caddy
+   can obtain a Let's Encrypt certificate.
 3. **Secrets.** The API key is written to the VM's `/opt/voice-chat/.env`. For
    stricter handling, store it in Azure Key Vault and read it via a managed
    identity at boot.

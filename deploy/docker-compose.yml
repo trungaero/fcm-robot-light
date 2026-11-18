@@ -10,6 +10,10 @@
 # STUN discovers the public IP and WebRTC media (SRTP/UDP) is reachable without
 # TURN in simple NAT setups (see the root README "Networking" section for the
 # caveats and the TURN recommendation).
+#
+# Caddy also runs on the host network and terminates TLS on :443 for the
+# signaling path, proxying to the backend's 127.0.0.1:8000 socket. Only Caddy
+# is exposed publicly; the backend is no longer reachable directly.
 services:
   backend:
     image: ghcr.io/trungaero/fcm-robot-light/backend:latest
@@ -17,3 +21,16 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

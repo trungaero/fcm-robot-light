@@ -15,6 +15,12 @@ write_files:
     content: |
       ${replace(trimspace(compose_yaml), "\n", "\n      ")}
 
+  - path: /opt/voice-chat/Caddyfile
+    permissions: "0644"
+    owner: root:root
+    content: |
+      ${replace(replace(trimspace(caddyfile), "<VM_PUBLIC_IP>", public_ip), "\n", "\n      ")}
+
   - path: /opt/voice-chat/.env
     permissions: "0600"
     owner: root:root

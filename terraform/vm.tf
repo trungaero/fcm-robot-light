@@ -1,8 +1,11 @@
 locals {
   compose_yaml = file("${path.module}/../deploy/docker-compose.yml")
+  caddyfile    = file("${path.module}/../deploy/Caddyfile")
 
   cloud_init = templatefile("${path.module}/templates/cloud-init.yaml.tpl", {
     compose_yaml             = local.compose_yaml
+    caddyfile                = local.caddyfile
+    public_ip                = azurerm_public_ip.pip.ip_address
     openai_api_key           = var.openai_api_key
     openai_realtime_model    = var.openai_realtime_model
     openai_realtime_voice    = var.openai_realtime_voice

@@ -4,18 +4,18 @@ output "public_ip" {
 }
 
 output "backend_url" {
-  description = "Backend base URL (HTTP)."
-  value       = "http://${azurerm_public_ip.pip.ip_address}:8000"
+  description = "Backend base URL (HTTPS, Caddy-terminated; self-signed cert)."
+  value       = "https://${azurerm_public_ip.pip.ip_address}"
 }
 
 output "backend_ws_url" {
-  description = "Backend signaling WebSocket URL, used as the Vite proxy target."
-  value       = "ws://${azurerm_public_ip.pip.ip_address}:8000"
+  description = "Backend signaling WebSocket URL (wss), used as the Vite proxy target."
+  value       = "wss://${azurerm_public_ip.pip.ip_address}"
 }
 
 output "health_url" {
-  description = "Backend health check URL."
-  value       = "http://${azurerm_public_ip.pip.ip_address}:8000/health"
+  description = "Backend health check URL (HTTPS, self-signed)."
+  value       = "https://${azurerm_public_ip.pip.ip_address}/health"
 }
 
 output "ssh_command" {

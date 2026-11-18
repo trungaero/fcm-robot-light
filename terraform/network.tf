@@ -60,16 +60,17 @@ resource "azurerm_network_security_group" "nsg" {
     destination_address_prefix = "*"
   }
 
-  # Signaling WebSocket + /health. The local frontend's Vite dev server proxies
-  # /ws and /health to this port on the VM.
+  # HTTPS signaling WebSocket + /health, terminated by Caddy on the VM.
+  # The local frontend's Vite dev server proxies /ws and /health (over wss/https)
+  # to this port. The backend's plain :8000 is no longer exposed publicly.
   security_rule {
-    name                       = "Backend"
+    name                       = "HTTPS"
     priority                   = 110
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
-    destination_port_range     = "8000"
+    destination_port_range     = "443"
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
